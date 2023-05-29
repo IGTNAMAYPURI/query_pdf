@@ -1,0 +1,22 @@
+# Python related files
+*.pyc
+*.pyo
+__pycache__/
+
+# Virtual environment
+myenv/
+
+# uploads
+pdfChunks/
+
+# Flask related files
+instance/
+*.pyc
+*.swp
+
+# Logs
+*.log
+
+# Other generated files
+*.bak
+*.sqlite3
