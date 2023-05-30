@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+import urllib.request
+from flask import Flask, request, jsonify, abort
 from werkzeug.utils import secure_filename
 from sklearn.neighbors import NearestNeighbors
 import tensorflow_hub as hub
@@ -11,6 +12,8 @@ import fitz
 
 logging.basicConfig(level=logging.DEBUG)
 
+def download_pdf(url, output_path):
+    urllib.request.urlretrieve(url, f'{output_path}')
 
 def preprocess(text):
     text = text.replace('\n', ' ')
@@ -92,7 +95,6 @@ def load_recommender(path):
     global recommender
     with open(path, 'r') as file:
         content = file.read()
-    app.logger.debug(eval(content))
     recommender.fit(eval(content))
     return 'Corpus Loaded.'
 
@@ -168,38 +170,39 @@ def get_chunks():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
-        if 'file' not in request.files:
-            return jsonify({"error": "No file part in the request"})
-
+        url = request.form.get('url')
+        file=None
+        if not url: 
+            file = request.files['file']
         name_to_save = request.args.get('filename')
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({"error": "No file selected"})
+        if url == None and file == None:
+            return jsonify({"error": "Both URL and PDF is empty. Provide atleast one."})
 
-        if file:
-            filename = secure_filename(name_to_save)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        filename = secure_filename(name_to_save)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if url!=None:
+            download_pdf(url, filepath)
+        else:
             file.save(filepath)
 
-            text = pdf_to_text(filepath)
-            chunks = text_to_chunks(text)
+        text = pdf_to_text(filepath)
+        chunks = text_to_chunks(text)
 
-            with open(f'{filepath}.json', 'w') as chunkfile:
-                json.dump(chunks, chunkfile)
+        with open(f'{filepath}.json', 'w') as chunkfile:
+            json.dump(chunks, chunkfile)
 
-            # Check if the file exists
-            if os.path.exists(filepath):
-                # Delete the file
-                os.remove(filepath)
-                print(f"File '{filepath}' deleted successfully.")
-            else:
-                print(f"File '{filepath}' does not exist.")
+        # Check if the file exists
+        if os.path.exists(filepath):
+            # Delete the file
+            os.remove(filepath)
+            print(f"File '{filepath}' deleted successfully.")
+        else:
+            print(f"File '{filepath}' does not exist.")
 
-            return jsonify({"chunks": chunks})
+        return jsonify({"chunks": chunks})
 
-        return jsonify({"error": "Invalid file type"})
     except Exception as e:
-        app.logger.error(f"An error occurred: {str(e)}")
+        app.logger.error(e)
         return jsonify({"error": "An error occurred"})
 
 
@@ -218,6 +221,10 @@ def delete_file():
     else:
         return jsonify({"error": f"File '{filename}' does not exist."})
 
+@app.errorhandler(400)
+def handle_bad_request(error):
+    # Handle the 400 error and return a custom response
+    return 'Bad Request: ' + error.description, 400
 
 if __name__ == '__main__':
     app.run(debug=True)

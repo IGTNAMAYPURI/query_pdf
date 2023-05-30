@@ -7,7 +7,7 @@ This is a Python Flask application that utilizes machine learning techniques to 
 1. Upload PDF:
    - **Route**: `http://localhost:5000/upload?filename=userId__chatId`
    - **Method**: POST
-   - **Form Data**: `file`
+   - **Form Data**: `file url`
    - **Query**: `filename`
    - **Description**: This API allows the user to upload a PDF file for processing. The uploaded file should be sent as form data with the key `file`. The desired filename can be specified in the query parameter `filename`.
 
